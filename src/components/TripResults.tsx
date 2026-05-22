@@ -53,6 +53,8 @@ const FALLBACK_TEXT: Record<InfoSection["key"], string> = {
   weather: "Check forecast 2–3 days before departure and pack light layers for comfortable day-to-night transitions."
 };
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export function TripResults({
   destination,
   startDate,
@@ -260,12 +262,15 @@ export function TripResults({
 
   const getSectionText = (section: InfoSection["key"]) => {
     const match = summarySentences.find((sentence) => {
-      const lower = sentence.toLowerCase();
-      return SECTION_KEYWORDS[section].some((keyword) => lower.includes(keyword));
+      return SECTION_KEYWORDS[section].some((keyword) => {
+        const keywordMatcher = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i");
+        return keywordMatcher.test(sentence);
+      });
     });
 
     if (section === "flight" && lowestPrice !== null) {
-      return `${FALLBACK_TEXT.flight} Current lowest detected fare: €${lowestPrice}.`;
+      const baseFlightTip = FALLBACK_TEXT.flight.replace(/[.!?]\s*$/, "");
+      return `${baseFlightTip}. Current lowest detected fare: €${lowestPrice}.`;
     }
 
     return match || FALLBACK_TEXT[section];
@@ -390,9 +395,10 @@ export function TripResults({
                   const match = line.match(/^Day\s+\d+/i);
                   const dayLabel = match ? match[0] : `Day ${index + 1}`;
                   const description = line.replace(dayLabel, "").trim();
+                  const itineraryKey = `${dayLabel}-${line}`;
 
                   return (
-                    <div key={`${dayLabel}-${index}`} className="relative pl-11">
+                    <div key={itineraryKey} className="relative pl-11">
                       {index < itineraryLines.length - 1 && (
                         <span className="absolute left-[17px] top-8 h-[calc(100%+20px)] w-px bg-cyan-200" />
                       )}
@@ -437,7 +443,7 @@ export function TripResults({
                   const toCode = flight.type === "OUTBOUND" ? destinationCode : originCode;
 
                   return (
-                    <article key={`${airlineCode}-${flight.dateTime}-${index}`} className="rounded-xl border border-gray-200 bg-gray-50/30 px-4 py-3">
+                    <article key={`${flight.type}-${flight.airline}-${flight.dateTime}-${flight.price}`} className="rounded-xl border border-gray-200 bg-gray-50/30 px-4 py-3">
                       <div className="hidden lg:grid lg:grid-cols-[260px_1fr_130px] lg:items-center lg:gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-bold text-white">
@@ -564,7 +570,7 @@ export function TripResults({
             <h3 className="mb-5 text-2xl font-bold text-gray-900">🎯 AI travel summary</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {summarySentences.slice(0, 6).map((sentence, index) => (
-                <div key={`${index}-${sentence.slice(0, 20)}`} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div key={`summary-${index}`} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                   <p className="text-sm leading-6 text-gray-700 sm:text-base">{sentence}</p>
                 </div>
               ))}
