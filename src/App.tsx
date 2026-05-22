@@ -41,7 +41,11 @@ export default function App() {
       const storedUser = localStorage.getItem('user');
       if (!storedUser) return;
       const parsedUser = JSON.parse(storedUser);
-      if (parsedUser?.id && parsedUser?.email) {
+      if (
+        typeof parsedUser?.id === 'number' &&
+        typeof parsedUser?.name === 'string' &&
+        typeof parsedUser?.email === 'string'
+      ) {
         setUser(parsedUser);
       }
     } catch (error) {

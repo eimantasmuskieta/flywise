@@ -52,7 +52,11 @@ export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps
     if (resolvedUserId === null) {
       try {
         const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
-        if (storedUser?.email?.toLowerCase?.() === email.trim().toLowerCase() && typeof storedUser?.id === 'number') {
+        if (
+          typeof storedUser?.email === 'string' &&
+          storedUser.email.toLowerCase() === email.trim().toLowerCase() &&
+          typeof storedUser?.id === 'number'
+        ) {
           resolvedUserId = storedUser.id;
         }
       } catch (error) {

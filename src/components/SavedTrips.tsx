@@ -35,7 +35,7 @@ export function SavedTrips({ user, onDeleteTrip, onViewTrip }: SavedTripsProps) 
         return res.json();
       })
       .then((data) => {
-        setDbTrips(data);
+        setDbTrips(Array.isArray(data) ? data : []);
       })
       .catch((err) => console.log(err));
   }, [user?.id]);
