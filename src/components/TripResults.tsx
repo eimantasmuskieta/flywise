@@ -107,14 +107,14 @@ const AIRPORT_CITY: Record<string, string> = {
 };
 
 const AIRLINE_COLORS: Record<string, string> = {
-  FR: "#073590",
-  W6: "#C5003E",
-  AY: "#003580",
-  SK: "#003087",
-  LO: "#003580",
-  EW: "#E30016",
-  LX: "#D9161B",
-  OS: "#CC0000",
+  FR: "#E6EEFB",
+  W6: "#FDE7EE",
+  AY: "#E8EFFA",
+  SK: "#E8ECF7",
+  LO: "#E8EFFA",
+  EW: "#FDEBEC",
+  LX: "#FDEBEC",
+  OS: "#FDEBEC",
 };
 
 function getOriginCode(city: string) {
@@ -340,8 +340,8 @@ function AirlineLogo({ code, name, bg }: { code: string; name: string; bg: strin
   const [err, setErr] = useState(false);
   return (
     <div
-      className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
-      style={{ backgroundColor: bg || "#1e293b" }}
+      className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200"
+      style={{ backgroundColor: bg || "#F3F4F6" }}
     >
       {!err ? (
         <img
@@ -351,7 +351,7 @@ function AirlineLogo({ code, name, bg }: { code: string; name: string; bg: strin
           onError={() => setErr(true)}
         />
       ) : (
-        <span className="text-white text-xs font-bold tracking-wide">{code}</span>
+        <span className="text-xs font-bold tracking-wide text-gray-700">{code}</span>
       )}
     </div>
   );
@@ -665,7 +665,7 @@ export function TripResults({
                 const priceNum = Number(fl.price.replace(/[^0-9]/g, ""));
                 const isBest =
                   lowestPrice !== null && priceNum > 0 && priceNum === lowestPrice;
-                const airlineBg = AIRLINE_COLORS[fl.airlineCode] ?? "#1e293b";
+                const airlineBg = AIRLINE_COLORS[fl.airlineCode] ?? "#F3F4F6";
 
                 return (
                   <div
@@ -680,8 +680,8 @@ export function TripResults({
                           name={fl.airline}
                           bg={airlineBg}
                         />
-                        <div>
-                          <p className="line-clamp-1 text-sm font-semibold leading-tight text-gray-900">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">
                             {fl.airline.replace(/\(.*?\)/g, "").trim()}
                           </p>
                           {fl.flightNumber && (
