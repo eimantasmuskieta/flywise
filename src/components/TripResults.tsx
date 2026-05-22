@@ -478,7 +478,7 @@ export function TripResults({
       {/* ── info strip ─────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-200 bg-white shadow-sm">
         <div className="mx-auto max-w-5xl px-4 py-3">
-          <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-4">
+          <div className="trip-results-info-grid">
             {/* Destination */}
             <div className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
               <div className="mb-1.5 flex items-center gap-1.5">
@@ -672,15 +672,15 @@ export function TripResults({
                     key={`${fl.type}-${fl.airline}-${idx}`}
                     className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                   >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+                    <div className="trip-flight-row">
                       {/* airline logo + info */}
-                      <div className="flex items-center gap-3 sm:w-56 sm:shrink-0">
+                      <div className="trip-flight-airline">
                         <AirlineLogo
                           code={fl.airlineCode}
                           name={fl.airline}
                           bg={airlineBg}
                         />
-                        <div className="min-w-0 flex-1">
+                        <div className="flex-1">
                           <p className="truncate text-sm font-semibold leading-tight text-gray-900">
                             {fl.airline.replace(/\(.*?\)/g, "").trim()}
                           </p>
@@ -700,9 +700,9 @@ export function TripResults({
                       </div>
 
                       {/* route */}
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="trip-flight-route">
                         {/* from */}
-                        <div className="w-[110px] shrink-0 overflow-hidden">
+                        <div className="trip-flight-point trip-flight-point--from">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.fromCode}</p>
                           <p className="mt-0.5 truncate text-xs text-gray-500">{fl.fromCity}</p>
                           {fl.departureTime && (
@@ -711,7 +711,7 @@ export function TripResults({
                         </div>
 
                         {/* middle */}
-                        <div className="flex flex-1 flex-col items-center gap-0.5">
+                        <div className="trip-flight-middle">
                           {fl.duration && (
                             <span className="text-xs font-medium text-gray-500">{fl.duration}</span>
                           )}
@@ -728,7 +728,7 @@ export function TripResults({
                         </div>
 
                         {/* to */}
-                        <div className="w-[110px] shrink-0 overflow-hidden text-right">
+                        <div className="trip-flight-point trip-flight-point--to">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.toCode}</p>
                           <p className="mt-0.5 truncate text-xs text-gray-500">{fl.toCity}</p>
                           {fl.arrivalTime && (
@@ -739,7 +739,7 @@ export function TripResults({
 
                       {/* price */}
                       {fl.price && (
-                        <div className="shrink-0 text-right sm:w-28">
+                        <div className="trip-flight-price">
                           <p className="text-2xl font-bold text-violet-600">{fl.price}</p>
                           <p className="text-xs text-gray-500">per person</p>
                           {isBest && (
