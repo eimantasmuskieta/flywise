@@ -478,25 +478,25 @@ export function TripResults({
       {/* ── info strip ─────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-200 bg-white shadow-sm">
         <div className="mx-auto max-w-5xl px-4 py-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-4">
             {/* Destination */}
-            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-              <div className="mb-1 flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-blue-500" />
+            <div className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
                 <span className="text-xs font-medium text-blue-500">Destination</span>
               </div>
               <div className="text-sm font-semibold text-gray-900">{destination}</div>
             </div>
 
             {/* Dates */}
-            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-              <div className="mb-1 flex items-center justify-between">
+            <div className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1.5 flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-green-500" />
+                  <Calendar className="h-4 w-4 shrink-0 text-green-500" />
                   <span className="text-xs font-medium text-green-500">Dates</span>
                 </div>
                 {days && (
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                  <span className="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
                     {days} days
                   </span>
                 )}
@@ -507,18 +507,18 @@ export function TripResults({
             </div>
 
             {/* Travelers */}
-            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-              <div className="mb-1 flex items-center gap-1.5">
-                <Users className="h-4 w-4 text-purple-500" />
+            <div className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <Users className="h-4 w-4 shrink-0 text-purple-500" />
                 <span className="text-xs font-medium text-purple-500">Travelers</span>
               </div>
               <div className="text-sm font-semibold text-gray-900">{travelers} people</div>
             </div>
 
             {/* Budget */}
-            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-              <div className="mb-1 flex items-center gap-1.5">
-                <DollarSign className="h-4 w-4 text-orange-500" />
+            <div className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4 shrink-0 text-orange-500" />
                 <span className="text-xs font-medium text-orange-500">Budget</span>
               </div>
               <div className="text-sm font-semibold text-gray-900">
@@ -535,7 +535,7 @@ export function TripResults({
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 transition hover:text-gray-800 hover:bg-gray-100"
           >
             ← Back
           </button>
@@ -544,10 +544,10 @@ export function TripResults({
             onClick={saveTrip}
             disabled={isSavingTrip}
             aria-label={isSavingTrip ? "Saving trip" : "Save trip"}
-            className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
+            className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:opacity-70 ${
               savedOk
                 ? "bg-green-500"
-                : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-105"
+                : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
             }`}
           >
             <span>{savedOk ? "✓" : "❤️"}</span>
@@ -681,7 +681,7 @@ export function TripResults({
                           bg={airlineBg}
                         />
                         <div>
-                          <p className="text-sm font-semibold text-gray-900 leading-tight">
+                          <p className="line-clamp-1 text-sm font-semibold leading-tight text-gray-900">
                             {fl.airline.replace(/\(.*?\)/g, "").trim()}
                           </p>
                           {fl.flightNumber && (
@@ -700,25 +700,25 @@ export function TripResults({
                       </div>
 
                       {/* route */}
-                      <div className="flex flex-1 items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         {/* from */}
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">{fl.fromCode}</p>
-                          <p className="text-xs text-gray-500">{fl.fromCity}</p>
+                        <div className="w-[90px] shrink-0 overflow-hidden">
+                          <p className="text-2xl font-bold leading-none text-gray-900">{fl.fromCode}</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">{fl.fromCity}</p>
                           {fl.departureTime && (
-                            <p className="text-xs text-gray-400 mt-0.5">{fl.departureTime}</p>
+                            <p className="mt-0.5 text-xs text-gray-400">{fl.departureTime}</p>
                           )}
                         </div>
 
                         {/* middle */}
-                        <div className="flex-1 flex flex-col items-center gap-1 max-w-[160px]">
+                        <div className="flex flex-1 flex-col items-center gap-0.5">
                           {fl.duration && (
-                            <span className="text-xs text-gray-500">{fl.duration}</span>
+                            <span className="text-xs font-medium text-gray-500">{fl.duration}</span>
                           )}
                           <div className="flex w-full items-center gap-1">
-                            <div className="h-px flex-1 bg-gray-300" />
+                            <div className="h-px flex-1 bg-gray-200" />
                             <Plane className="h-3.5 w-3.5 text-gray-400" />
-                            <div className="h-px flex-1 bg-gray-300" />
+                            <div className="h-px flex-1 bg-gray-200" />
                           </div>
                           {fl.isDirect && (
                             <span className="text-[10px] font-medium text-emerald-600">
@@ -728,11 +728,11 @@ export function TripResults({
                         </div>
 
                         {/* to */}
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">{fl.toCode}</p>
-                          <p className="text-xs text-gray-500">{fl.toCity}</p>
+                        <div className="w-[90px] shrink-0 overflow-hidden text-right">
+                          <p className="text-2xl font-bold leading-none text-gray-900">{fl.toCode}</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">{fl.toCity}</p>
                           {fl.arrivalTime && (
-                            <p className="text-xs text-gray-400 mt-0.5">{fl.arrivalTime}</p>
+                            <p className="mt-0.5 text-xs text-gray-400">{fl.arrivalTime}</p>
                           )}
                         </div>
                       </div>
