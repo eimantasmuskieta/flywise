@@ -544,7 +544,7 @@ export function TripResults({
             onClick={saveTrip}
             disabled={isSavingTrip}
             aria-label={isSavingTrip ? "Saving trip" : "Save trip"}
-            className={`inline-flex h-9 min-w-[110px] items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:opacity-70 ${
+            className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:opacity-70 ${
               savedOk
                 ? "bg-green-500"
                 : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
@@ -702,9 +702,9 @@ export function TripResults({
                       {/* route */}
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         {/* from */}
-                        <div className="w-[90px] shrink-0">
+                        <div className="w-[90px] shrink-0 overflow-hidden">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.fromCode}</p>
-                          <p className="mt-0.5 text-xs text-gray-500">{fl.fromCity}</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">{fl.fromCity}</p>
                           {fl.departureTime && (
                             <p className="mt-0.5 text-xs text-gray-400">{fl.departureTime}</p>
                           )}
@@ -728,9 +728,9 @@ export function TripResults({
                         </div>
 
                         {/* to */}
-                        <div className="w-[90px] shrink-0 text-right">
+                        <div className="w-[90px] shrink-0 overflow-hidden text-right">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.toCode}</p>
-                          <p className="mt-0.5 text-xs text-gray-500">{fl.toCity}</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">{fl.toCity}</p>
                           {fl.arrivalTime && (
                             <p className="mt-0.5 text-xs text-gray-400">{fl.arrivalTime}</p>
                           )}
