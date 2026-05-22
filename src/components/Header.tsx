@@ -4,7 +4,7 @@ import { useState } from 'react';
 interface HeaderProps {
   currentPage: string;
   onNavigate: (page: string) => void;
-  user: { name: string; email: string } | null;
+  user: { id: number; name: string; email: string } | null;
   onAuthClick: () => void;
   onLogout: () => void;
 }

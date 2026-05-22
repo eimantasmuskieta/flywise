@@ -13,21 +13,41 @@ interface SavedTrip {
 
 interface SavedTripsProps {
   trips: SavedTrip[];
+  user: { id: number; name: string; email: string } | null;
   onDeleteTrip: (id: string) => void;
   onViewTrip: (trip: SavedTrip) => void;
 }
 
-export function SavedTrips({ onDeleteTrip, onViewTrip }: SavedTripsProps) {
+export function SavedTrips({ user, onDeleteTrip, onViewTrip }: SavedTripsProps) {
   const [dbTrips, setDbTrips] = useState<SavedTrip[]>([]);
 
   useEffect(() => {
-    fetch('/api/trips/1')
+    if (!user?.id) {
+      setDbTrips([]);
+      return;
+    }
+
+    fetch(`/api/trips/${user.id}`)
       .then((res) => res.json())
       .then((data) => {
         setDbTrips(data);
       })
       .catch((err) => console.log(err));
-  }, []);
+  }, [user?.id]);
+
+  if (!user?.id) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-purple-50 via-pink-50 to-cyan-50 py-12 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="bg-white rounded-3xl p-12 shadow-xl">
+            <Heart className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+            <h2 className="mb-4 text-gray-900">Sign in to view saved trips</h2>
+            <p className="text-gray-600">Saved trips are available only for your logged-in account.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (dbTrips.length === 0) {
     return (

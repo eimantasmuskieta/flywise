@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 interface AuthDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthenticated: (user: { name: string; email: string }) => void;
+  onAuthenticated: (user: { id: number; name: string; email: string }) => void;
 }
 
 export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps) {
@@ -14,6 +14,16 @@ export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const getUserIdFromEmail = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    let hash = 0;
+    for (let i = 0; i < normalized.length; i += 1) {
+      hash = (hash << 5) - hash + normalized.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash) || 1;
+  };
 
   if (!isOpen) return null;
 
@@ -33,7 +43,7 @@ export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps
     }
     // Mock authentication - in real app, this would call an API
     const userData = {
-  id: 1,
+  id: getUserIdFromEmail(email),
   name: mode === 'register' ? name : email.split('@')[0],
   email: email
 };

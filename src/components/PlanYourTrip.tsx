@@ -9,7 +9,7 @@ type ViewMode = 'form' | 'chat';
 
 interface PlanYourTripProps {
   initialMode?: ViewMode;
-  user: { name: string; email: string } | null;
+  user: { id: number; name: string; email: string } | null;
   onSaveTrip: (trip: any) => void;
   onAuthRequired: () => void;
 }

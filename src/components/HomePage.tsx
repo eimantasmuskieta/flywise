@@ -7,7 +7,7 @@ import { PlanYourTrip } from './PlanYourTrip';
 import { useState } from 'react';
 
 interface HomePageProps {
-  user: { name: string; email: string } | null;
+  user: { id: number; name: string; email: string } | null;
   onSaveTrip: (trip: any) => void;
   onAuthRequired: () => void;
 }
