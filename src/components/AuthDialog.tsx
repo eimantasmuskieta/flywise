@@ -9,21 +9,21 @@ interface AuthDialogProps {
   onAuthenticated: (user: { id: number; name: string; email: string }) => void;
 }
 
+const hashEmailForMockId = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash << 5) - hash + normalized.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) || 1;
+};
+
 export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  const hashEmailForMockId = (value: string) => {
-    const normalized = value.trim().toLowerCase();
-    let hash = 0;
-    for (let i = 0; i < normalized.length; i += 1) {
-      hash = (hash << 5) - hash + normalized.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash) || 1;
-  };
 
   if (!isOpen) return null;
 
@@ -50,9 +50,13 @@ export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps
     }
 
     if (resolvedUserId === null) {
-      const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
-      if (storedUser?.email?.toLowerCase?.() === email.trim().toLowerCase() && typeof storedUser?.id === 'number') {
-        resolvedUserId = storedUser.id;
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+        if (storedUser?.email?.toLowerCase?.() === email.trim().toLowerCase() && typeof storedUser?.id === 'number') {
+          resolvedUserId = storedUser.id;
+        }
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
       }
     }
 

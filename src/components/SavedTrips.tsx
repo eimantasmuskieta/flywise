@@ -28,7 +28,12 @@ export function SavedTrips({ user, onDeleteTrip, onViewTrip }: SavedTripsProps) 
     }
 
     fetch(`/api/trips/${user.id}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch trips: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         setDbTrips(data);
       })
