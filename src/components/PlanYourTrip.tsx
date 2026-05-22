@@ -458,12 +458,8 @@ export function PlanYourTrip({ initialMode = 'form', user, onSaveTrip, onAuthReq
         endDate={endDate}
         travelers={parseInt(travelers)}
         budget={parseInt(budget)}
-        interests={interests}
-        apiBaseUrl={API_BASE_URL}
         planData={formPlanData}
         onBack={() => setShowResults(false)}
-        onSaveTrip={handleSaveTrip}
-        user={user}
         onAuthRequired={onAuthRequired}
       />
     );

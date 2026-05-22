@@ -15,10 +15,6 @@ interface TripResultsProps {
   planData: PlanApiData | null;
   onBack: () => void;
   onAuthRequired?: () => void;
-  interests?: string;
-  apiBaseUrl?: string;
-  onSaveTrip?: () => void;
-  user?: { id?: number | string; name?: string; email?: string } | null;
 }
 
 interface FlightCardData {
@@ -368,7 +364,7 @@ export function TripResults({
 
           {!isLoggedIn && (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-              Please sign in to save this trip to your account.
+              Please sign in to save this trip to your account
             </div>
           )}
 
