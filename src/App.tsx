@@ -11,6 +11,7 @@ import { ContactUsPage } from './components/ContactUsPage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { TermsOfServicePage } from './components/TermsOfServicePage';
 import { toast, Toaster } from 'sonner@2.0.3';
+import { useEffect } from 'react';
 
 interface SavedTrip {
   id: string;
@@ -23,32 +24,60 @@ interface SavedTrip {
   savedAt: Date;
 }
 
+interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
 
-  const handleAuthenticated = (userData: { name: string; email: string }) => {
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) return;
+      const parsedUser = JSON.parse(storedUser);
+      if (
+        typeof parsedUser?.id === 'number' &&
+        typeof parsedUser?.name === 'string' &&
+        typeof parsedUser?.email === 'string'
+      ) {
+        setUser(parsedUser);
+      }
+    } catch (error) {
+      console.error('Failed to load user from storage:', error);
+    }
+  }, []);
+
+  const handleAuthenticated = (userData: AuthUser) => {
     setUser(userData);
     toast.success(`Welcome back, ${userData.name}! 🎉`);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('user');
     setUser(null);
     setCurrentPage('home');
     toast.success('You have been signed out');
   };
 
   const handleSaveTrip = async (trip: SavedTrip) => {
-  try {
+   if (!user?.id) {
+    toast.info('Please sign in to save your trips');
+    return;
+   }
+   try {
     const response = await fetch('/api/trips/save', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        user_id: 1,
+        user_id: user.id,
         destination: trip.destination,
         start_date: trip.startDate,
         end_date: trip.endDate,
@@ -64,7 +93,7 @@ export default function App() {
     setSavedTrips([...savedTrips, trip]);
 
     toast.success('Trip saved successfully! ✈️');
-  } catch (error) {
+   } catch (error) {
     console.log(error);
     toast.error('Failed to save trip');
   }
@@ -109,6 +138,7 @@ export default function App() {
         {currentPage === 'saved' && (
           <SavedTrips 
             trips={savedTrips}
+            user={user}
             onDeleteTrip={handleDeleteTrip}
             onViewTrip={handleViewTrip}
           />

@@ -1,9 +1,32 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import {
+  MapPin,
+  Calendar,
+  Users,
+  DollarSign,
+  Plane,
+  Landmark,
+  Utensils,
+  Camera,
+  ShoppingBag,
+  CalendarDays,
+  Sparkles,
+  Map,
+} from "lucide-react";
+
+interface FlightOption {
+  airline?: { name?: string };
+  flight?: { iata?: string };
+  departure?: { airport?: string; scheduled?: string };
+  arrival?: { airport?: string; scheduled?: string };
+  trip_leg?: string;
+}
 
 interface PlanApiData {
   reply: string;
   itinerary: string[];
+  flights?: FlightOption[];
 }
 
 interface TripResultsProps {
@@ -14,13 +37,24 @@ interface TripResultsProps {
   budget: number;
   planData: PlanApiData | null;
   onBack: () => void;
+  onAuthRequired?: () => void;
+  originCity?: string;
 }
 
-interface FlightCardData {
-  type: "RETURN" | "OUTBOUND";
+interface ParsedFlight {
+  type: "OUTBOUND" | "RETURN";
   airline: string;
-  dateTime: string;
+  flightNumber: string;
+  airlineCode: string;
+  fromCode: string;
+  toCode: string;
+  fromCity: string;
+  toCity: string;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
   price: string;
+  isDirect: boolean;
 }
 
 interface StoredUser {
@@ -29,31 +63,310 @@ interface StoredUser {
   email?: string;
 }
 
-interface InfoSection {
-  key: "flight" | "accommodation" | "food" | "weather";
-  icon: string;
-  title: string;
-  accent: string;
-  border: string;
-  background: string;
-  text: string;
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+const CITY_AIRPORT: Record<string, string> = {
+  vilnius: "VNO",
+  riga: "RIX",
+  tallinn: "TLL",
+  london: "LHR",
+  paris: "CDG",
+  berlin: "BER",
+  warsaw: "WAW",
+  amsterdam: "AMS",
+  madrid: "MAD",
+  rome: "FCO",
+  milan: "MXP",
+  lisbon: "LIS",
+  barcelona: "BCN",
+  dubai: "DXB",
+  "new york": "JFK",
+  singapore: "SIN",
+  tokyo: "NRT",
+};
+
+const AIRPORT_CITY: Record<string, string> = {
+  VNO: "Vilnius",
+  RIX: "Riga",
+  TLL: "Tallinn",
+  LHR: "London",
+  CDG: "Paris",
+  BER: "Berlin",
+  WAW: "Warsaw",
+  AMS: "Amsterdam",
+  MAD: "Madrid",
+  FCO: "Rome",
+  CIA: "Rome (Ciampino)",
+  MXP: "Milan",
+  LIS: "Lisbon",
+  BCN: "Barcelona",
+  DXB: "Dubai",
+  JFK: "New York",
+  SIN: "Singapore",
+  NRT: "Tokyo",
+};
+
+const AIRLINE_COLORS: Record<string, string> = {
+  FR: "#073590",
+  W6: "#C5003E",
+  AY: "#003580",
+  SK: "#003087",
+  LO: "#003580",
+  EW: "#E30016",
+  LX: "#D9161B",
+  OS: "#CC0000",
+};
+
+function getOriginCode(city: string) {
+  return CITY_AIRPORT[city.toLowerCase()] ?? city.slice(0, 3).toUpperCase();
 }
 
-const SECTION_KEYWORDS: Record<InfoSection["key"], string[]> = {
-  flight: ["flight", "airport", "departure", "airline", "ticket", "fare"],
-  accommodation: ["hotel", "stay", "accommodation", "hostel", "apartment", "check-in"],
-  food: ["food", "restaurant", "cafe", "local dish", "dining", "meal"],
-  weather: ["weather", "rain", "temperature", "forecast", "jacket", "climate"]
+function getDestCode(city: string) {
+  const v = city.trim().toLowerCase();
+  if (v.includes("paris")) return "CDG";
+  if (v.includes("rome")) return "CIA";
+  if (v.includes("london")) return "LHR";
+  if (v.includes("barcelona")) return "BCN";
+  if (v.includes("berlin")) return "BER";
+  if (v.includes("milan")) return "MXP";
+  if (v.includes("madrid")) return "MAD";
+  if (v.includes("lisbon")) return "LIS";
+  if (v.includes("amsterdam")) return "AMS";
+  if (v.includes("tokyo")) return "NRT";
+  if (v.includes("dubai")) return "DXB";
+  return CITY_AIRPORT[v] ?? city.slice(0, 3).toUpperCase();
+}
+
+function getAirlineCode(name: string) {
+  const n = name.toUpperCase();
+  if (n.includes("RYANAIR")) return "FR";
+  if (n.includes("WIZZ")) return "W6";
+  if (n.includes("FINNAIR")) return "AY";
+  if (n.includes("SCANDINAVIAN") || n.includes(" SAS")) return "SK";
+  if (n.includes(" LOT")) return "LO";
+  if (n.includes("EUROWINGS")) return "EW";
+  if (n.includes("SWISS")) return "LX";
+  if (n.includes("AUSTRIAN")) return "OS";
+  const match = name.match(/\b([A-Z]{2})\s*\d{3,4}\b/);
+  return match ? match[1] : name.slice(0, 2).toUpperCase();
+}
+
+function extractFlightNumber(text: string) {
+  const m = text.match(/\b([A-Z]{2}\s*\d{3,4})\b/);
+  return m ? m[1] : "";
+}
+
+function formatFlightDateTime(scheduled?: string) {
+  if (!scheduled) return "";
+  const d = new Date(scheduled);
+  if (isNaN(d.getTime())) return scheduled;
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function calcDuration(dep?: string, arr?: string) {
+  if (!dep || !arr) return "";
+  const d = new Date(dep);
+  const a = new Date(arr);
+  if (isNaN(d.getTime()) || isNaN(a.getTime())) return "";
+  const diff = a.getTime() - d.getTime();
+  if (diff <= 0) return "";
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  return `${h}h ${m}m`;
+}
+
+function itineraryDate(startDate: string, dayIndex: number) {
+  const d = new Date(startDate);
+  if (isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + dayIndex);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatDateRange(s: string, e: string) {
+  const fmt = (ds: string) => {
+    const d = new Date(ds);
+    if (isNaN(d.getTime())) return ds;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  return `${fmt(s)} - ${fmt(e)}`;
+}
+
+function dayCount(s: string, e: string) {
+  const start = new Date(s);
+  const end = new Date(e);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+  return Math.ceil((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
+function getItineraryIcon(text: string) {
+  const t = text.toLowerCase();
+  if (/arriv|check.in|hotel|fly|flight|depart/.test(t))
+    return { Icon: Plane, bg: "bg-blue-100", color: "text-blue-600" };
+  if (/sight|landmark|museum|cathedral|monument|attraction/.test(t))
+    return { Icon: Landmark, bg: "bg-teal-100", color: "text-teal-600" };
+  if (/culture|food|restaurant|dining|cafe|local dish|market/.test(t))
+    return { Icon: Utensils, bg: "bg-orange-100", color: "text-orange-500" };
+  if (/neighb|photo|market|street|explore/.test(t))
+    return { Icon: Camera, bg: "bg-violet-100", color: "text-violet-600" };
+  if (/shopping|souvenir|highlight|final|last day/.test(t))
+    return { Icon: ShoppingBag, bg: "bg-slate-100", color: "text-slate-600" };
+  return { Icon: Map, bg: "bg-indigo-100", color: "text-indigo-600" };
+}
+
+function parseItineraryLine(line: string) {
+  const withoutDay = line.replace(/^Day\s*\d+\+?\s*[:(–\-]?\s*/i, "").trim();
+  const withoutDate = withoutDay.replace(/^\(\d{4}-\d{2}-\d{2}\)\s*:?\s*/i, "").trim();
+  const m = withoutDate.match(/^([^,:\n]+?)[,:](.+)$/s);
+  if (m) return { title: m[1].trim(), description: m[2].trim() };
+  return { title: withoutDate, description: "" };
+}
+
+function parsePlanSections(reply: string) {
+  const normLine = (l: string) =>
+    l.replace(/^#+\s*/, "").replace(/\*\*/g, "").replace(/^[-*•]\s*/, "").trim();
+
+  const known = ["Summary", "Itinerary", "Flights", "Return", "Budget", "Tips"];
+  const sectionRe = new RegExp(`^(${known.join("|")}):?\\s*$`, "i");
+
+  const lines = reply.split("\n").map(normLine).filter(Boolean);
+  const sections: Record<string, string[]> = {};
+  const introLines: string[] = [];
+  let current: string | null = null;
+
+  for (const line of lines) {
+    if (/^\[(OUTBOUND|RETURN)\]/i.test(line)) continue;
+    const sm = line.match(sectionRe);
+    if (sm) {
+      current = sm[1].toLowerCase();
+      sections[current] = [];
+    } else if (current) {
+      sections[current].push(line);
+    } else {
+      introLines.push(line);
+    }
+  }
+
+  return { intro: introLines.join(" "), sections };
+}
+
+function buildFlightsFromStructured(
+  structured: FlightOption[],
+  originCode: string,
+  destCode: string
+): ParsedFlight[] {
+  return structured.map((f) => {
+    const legRaw = (f.trip_leg ?? "").toLowerCase();
+    const type: ParsedFlight["type"] =
+      legRaw.includes("return") || legRaw.includes("inbound") ? "RETURN" : "OUTBOUND";
+    const airline = f.airline?.name ?? "";
+    const code = getAirlineCode(airline);
+    const flightNum = f.flight?.iata ?? extractFlightNumber(airline);
+    const dep = f.departure?.scheduled;
+    const arr = f.arrival?.scheduled;
+    const isOutbound = type === "OUTBOUND";
+    const fromCode = isOutbound ? originCode : destCode;
+    const toCode = isOutbound ? destCode : originCode;
+    return {
+      type,
+      airline: airline || "Flight",
+      flightNumber: flightNum,
+      airlineCode: code,
+      fromCode,
+      toCode,
+      fromCity: AIRPORT_CITY[fromCode] ?? fromCode,
+      toCity: AIRPORT_CITY[toCode] ?? toCode,
+      departureTime: formatFlightDateTime(dep),
+      arrivalTime: formatFlightDateTime(arr),
+      duration: calcDuration(dep, arr),
+      price: "",
+      isDirect: true,
+    };
+  });
+}
+
+function buildFlightsFromText(
+  reply: string,
+  originCode: string,
+  destCode: string
+): ParsedFlight[] {
+  const matches = reply.match(/\[(RETURN|OUTBOUND)\][^\n]+/g) ?? [];
+  return matches.map((line) => {
+    const type = line.includes("[RETURN]") ? "RETURN" : "OUTBOUND";
+    const clean = line.replace(/^\[(RETURN|OUTBOUND)\]\s*/i, "").trim();
+    const parts = clean.split(" - ").map((p) => p.trim());
+    const airline = parts[0] ?? "";
+    const code = getAirlineCode(airline);
+    const flightNum = extractFlightNumber(airline) || extractFlightNumber(clean);
+    const dateTimePart = parts[1] ?? "";
+    const pricePart = parts[2] ?? "";
+    const price = pricePart.replace(/[^0-9]/g, "")
+      ? `€${pricePart.replace(/[^0-9]/g, "")}`
+      : pricePart;
+    const isOutbound = type === "OUTBOUND";
+    const fromCode = isOutbound ? originCode : destCode;
+    const toCode = isOutbound ? destCode : originCode;
+    return {
+      type: type as "OUTBOUND" | "RETURN",
+      airline,
+      flightNumber: flightNum,
+      airlineCode: code,
+      fromCode,
+      toCode,
+      fromCity: AIRPORT_CITY[fromCode] ?? fromCode,
+      toCity: AIRPORT_CITY[toCode] ?? toCode,
+      departureTime: formatFlightDateTime(dateTimePart) || dateTimePart,
+      arrivalTime: "",
+      duration: "",
+      price,
+      isDirect: true,
+    };
+  });
+}
+
+// ─── sub-components ───────────────────────────────────────────────────────────
+
+function AirlineLogo({ code, name, bg }: { code: string; name: string; bg: string }) {
+  const [err, setErr] = useState(false);
+  return (
+    <div
+      className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
+      style={{ backgroundColor: bg || "#1e293b" }}
+    >
+      {!err ? (
+        <img
+          src={`https://pics.avs.io/64/64/${code}.png`}
+          alt={name}
+          className="h-10 w-10 object-contain"
+          onError={() => setErr(true)}
+        />
+      ) : (
+        <span className="text-white text-xs font-bold tracking-wide">{code}</span>
+      )}
+    </div>
+  );
+}
+
+const SECTION_LABELS: Record<string, { label: string; color: string }> = {
+  summary:   { label: "Summary:",   color: "text-blue-600" },
+  itinerary: { label: "Itinerary:", color: "text-orange-500" },
+  flights:   { label: "Flights:",   color: "text-teal-600" },
+  return:    { label: "Return:",    color: "text-teal-600" },
+  budget:    { label: "Budget:",    color: "text-blue-600" },
+  tips:      { label: "Tips:",      color: "text-emerald-600" },
 };
 
-const FALLBACK_TEXT: Record<InfoSection["key"], string> = {
-  flight: "Book flights 4–8 weeks ahead, compare nearby airports, and prioritize morning departures for better punctuality.",
-  accommodation: "Choose accommodation with easy public transport access and flexible cancellation in case plans shift.",
-  food: "Mix local favorites with highly rated neighborhood spots and reserve popular restaurants in advance.",
-  weather: "Check forecast 2–3 days before departure and pack light layers for comfortable day-to-night transitions."
-};
-
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// ─── main component ───────────────────────────────────────────────────────────
 
 export function TripResults({
   destination,
@@ -62,521 +375,387 @@ export function TripResults({
   travelers,
   budget,
   planData,
-  onBack
+  onBack,
+  onAuthRequired,
+  originCity = "Vilnius",
 }: TripResultsProps) {
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
+  const [isSavingTrip, setIsSavingTrip] = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
 
-  const readUserFromStorage = () => {
+  const readUser = () => {
     try {
-      const userRaw = localStorage.getItem("user");
-      if (!userRaw) return null;
-
-      const parsed = JSON.parse(userRaw);
-      if (parsed && parsed.id) {
-        return parsed;
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Failed to read user from localStorage:", error);
+      const raw = localStorage.getItem("user");
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      return p?.id ? p : null;
+    } catch {
       return null;
     }
   };
 
   useEffect(() => {
-    const syncAuthState = () => {
-      const user = readUserFromStorage();
-      setCurrentUser(user);
-    };
-
-    syncAuthState();
-
-    const handleFocus = () => {
-      syncAuthState();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        syncAuthState();
-      }
-    };
-
-    const handleStorage = () => {
-      syncAuthState();
-    };
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("storage", handleStorage);
-
+    const sync = () => setCurrentUser(readUser());
+    sync();
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") sync();
+    });
+    window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("storage", sync);
     };
   }, []);
 
   const isLoggedIn = !!currentUser?.id;
 
   const saveTrip = async () => {
+    if (isSavingTrip) return;
+    const user = readUser();
+    if (!user?.id) {
+      if (onAuthRequired) onAuthRequired();
+      else alert("Please sign in to save this trip.");
+      return;
+    }
+    setIsSavingTrip(true);
     try {
-      const user = readUserFromStorage();
-
-      if (!user || !user.id) {
-        alert("Please login first");
-        return;
-      }
-
-      const response = await axios.post("/api/trips/save", {
+      const res = await axios.post("/api/trips/save", {
         user_id: user.id,
         destination,
         start_date: startDate,
         end_date: endDate,
         travelers,
-        budget
+        budget,
       });
-
-      if (response.status === 200 || response.status === 201) {
-        alert("Trip saved!");
+      if (res.status === 200 || res.status === 201) {
+        setSavedOk(true);
+        setTimeout(() => setSavedOk(false), 3000);
       } else {
-        alert("Failed to save trip");
+        alert("Failed to save trip.");
       }
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
-        alert("You must be logged in to save a trip.");
+        if (onAuthRequired) onAuthRequired();
         return;
       }
-
-      console.error(err);
-      alert("Failed to save trip");
+      alert("Failed to save trip.");
+    } finally {
+      setIsSavingTrip(false);
     }
   };
 
-  const itineraryLines = planData?.itinerary || [];
-  const replyText = planData?.reply || "No AI summary available.";
+  // ── derived data ────────────────────────────────────────────────────────────
 
-  const flightMatches = useMemo(
-    () => replyText.match(/\[(RETURN|OUTBOUND)\][^\n]+/g) || [],
-    [replyText]
-  );
+  const itineraryLines = planData?.itinerary ?? [];
+  const replyText = planData?.reply ?? "";
 
-  const flights: FlightCardData[] = useMemo(
-    () =>
-      flightMatches.map((line) => {
-        const type = line.includes("[RETURN]") ? "RETURN" : "OUTBOUND";
-        const cleanLine = line.replace(/^\[(RETURN|OUTBOUND)\]\s*/, "").trim();
-        const parts = cleanLine.split(" - ").map((part) => part.trim());
+  const originCode = useMemo(() => getOriginCode(originCity), [originCity]);
+  const destCode = useMemo(() => getDestCode(destination), [destination]);
 
-        return {
-          type,
-          airline: parts[0] || "Flight option",
-          dateTime: parts[1] || "",
-          price: parts[2]?.replace(/\s*EUR.*$/i, "").trim() || ""
-        };
-      }),
-    [flightMatches]
-  );
+  const flights: ParsedFlight[] = useMemo(() => {
+    const structured = planData?.flights ?? [];
+    if (structured.length > 0)
+      return buildFlightsFromStructured(structured, originCode, destCode);
+    return buildFlightsFromText(replyText, originCode, destCode);
+  }, [planData?.flights, replyText, originCode, destCode]);
 
-  const extractNumericPrice = (price: string) => {
-    const match = price.match(/(\d+)/);
-    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-  };
+  const lowestPrice = useMemo(() => {
+    const nums = flights
+      .map((f) => Number(f.price.replace(/[^0-9]/g, "")))
+      .filter((n) => n > 0);
+    return nums.length ? Math.min(...nums) : null;
+  }, [flights]);
 
-  const lowestPrice = flights.length
-    ? Math.min(...flights.map((flight) => extractNumericPrice(flight.price)))
-    : null;
+  const planSections = useMemo(() => parsePlanSections(replyText), [replyText]);
 
-  const shortenAirlineName = (name: string) => {
-    return name
-      .replace(/\((.*?)\)/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  };
+  const days = useMemo(() => dayCount(startDate, endDate), [startDate, endDate]);
 
-  const getAirlineCode = (name: string) => {
-    const shortName = shortenAirlineName(name).toUpperCase();
-
-    if (shortName.includes("FINNAIR")) return "AY";
-    if (shortName.includes("SCANDINAVIAN")) return "SK";
-    if (shortName.includes("LOT")) return "LO";
-    if (shortName.includes("RYANAIR")) return "FR";
-    if (shortName.includes("WIZZ")) return "W6";
-
-    return shortName.slice(0, 2) || "FL";
-  };
-
-  const getDestinationCode = (city: string) => {
-    const value = city.trim().toLowerCase();
-
-    if (value.includes("paris")) return "PAR";
-    if (value.includes("rome")) return "CIA";
-    if (value.includes("london")) return "LON";
-    if (value.includes("barcelona")) return "BCN";
-    if (value.includes("berlin")) return "BER";
-    if (value.includes("milan")) return "MIL";
-    if (value.includes("madrid")) return "MAD";
-    if (value.includes("lisbon")) return "LIS";
-    if (value.includes("amsterdam")) return "AMS";
-
-    return city.slice(0, 3).toUpperCase();
-  };
-
-  const formatFlightDate = (dateString: string) => {
-    const date = new Date(dateString);
-
-    if (Number.isNaN(date.getTime())) return dateString;
-
-    return date.toLocaleString("en-GB", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  };
-
-  const cleanedReplyForSummary = useMemo(
-    () =>
-      replyText
-        .replace(/\[(RETURN|OUTBOUND)\][^\n]+/g, "")
-        .replace(/\s+/g, " ")
-        .trim(),
-    [replyText]
-  );
-
-  const summarySentences = useMemo(() => {
-    if (!cleanedReplyForSummary) {
-      return ["No AI summary available."];
-    }
-
-    const parts = cleanedReplyForSummary
-      .split(/(?<=[.!?])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter((sentence) => sentence.length > 0);
-
-    if (!parts.length) {
-      return [cleanedReplyForSummary];
-    }
-
-    return parts.slice(0, 8);
-  }, [cleanedReplyForSummary]);
-
-  const getSectionText = (section: InfoSection["key"]) => {
-    const match = summarySentences.find((sentence) => {
-      return SECTION_KEYWORDS[section].some((keyword) => {
-        const keywordMatcher = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i");
-        return keywordMatcher.test(sentence);
-      });
-    });
-
-    if (section === "flight" && lowestPrice !== null) {
-      const baseFlightTip = FALLBACK_TEXT.flight.replace(/[.!?]\s*$/, "");
-      return `${baseFlightTip}. Current lowest detected fare: €${lowestPrice}.`;
-    }
-
-    return match || FALLBACK_TEXT[section];
-  };
-
-  const infoSections: InfoSection[] = [
-    {
-      key: "flight",
-      icon: "✈️",
-      title: "Flight recommendations",
-      accent: "text-violet-700",
-      border: "border-violet-100",
-      background: "from-violet-50 to-white",
-      text: getSectionText("flight")
-    },
-    {
-      key: "accommodation",
-      icon: "🏨",
-      title: "Accommodation tips",
-      accent: "text-blue-700",
-      border: "border-blue-100",
-      background: "from-blue-50 to-white",
-      text: getSectionText("accommodation")
-    },
-    {
-      key: "food",
-      icon: "🍽️",
-      title: "Food suggestions",
-      accent: "text-orange-700",
-      border: "border-orange-100",
-      background: "from-orange-50 to-white",
-      text: getSectionText("food")
-    },
-    {
-      key: "weather",
-      icon: "🌤️",
-      title: "Weather tips",
-      accent: "text-emerald-700",
-      border: "border-emerald-100",
-      background: "from-emerald-50 to-white",
-      text: getSectionText("weather")
-    }
-  ];
-
-  const originCode = "VNO";
-  const destinationCode = getDestinationCode(destination);
+  // ── render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mx-auto max-w-6xl">
-        <button
-          onClick={onBack}
-          className="mb-5 rounded-xl bg-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-300"
-        >
-          ← Back
-        </button>
-
-        <div className="overflow-visible rounded-3xl border border-gray-100 bg-white p-5 shadow-xl sm:p-8">
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h1 className="mb-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                ✨ Travel Assistant
-              </h1>
-              <p className="text-sm text-gray-600 sm:text-base">
-                Personalized itinerary and practical recommendations for a smoother trip.
-              </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* ── info strip ─────────────────────────────────────────────────────── */}
+      <div className="border-b border-gray-200 bg-white shadow-sm">
+        <div className="mx-auto max-w-5xl px-4 py-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Destination */}
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1 flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-medium text-blue-500">Destination</span>
+              </div>
+              <div className="text-sm font-semibold text-gray-900">{destination}</div>
             </div>
 
-            {isLoggedIn && (
-              <button
-                onClick={saveTrip}
-                className="inline-flex h-12 min-w-[150px] items-center justify-center gap-2 self-start whitespace-nowrap rounded-2xl border border-white/20 bg-gradient-to-r from-purple-500 to-pink-500 px-6 text-base font-semibold leading-none text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98]"
-              >
-                <span>❤️</span>
-                <span>Save Trip</span>
-              </button>
-            )}
-          </div>
-
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white px-5 py-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-500">
-                <span>📍</span>
-                <span>Destination</span>
+            {/* Dates */}
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-green-500" />
+                  <span className="text-xs font-medium text-green-500">Dates</span>
+                </div>
+                {days && (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                    {days} days
+                  </span>
+                )}
               </div>
-              <div className="text-lg font-semibold text-gray-900">{destination}</div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white px-5 py-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-emerald-600">
-                <span>📅</span>
-                <span>Dates</span>
-              </div>
-              <div className="text-sm font-semibold text-gray-900 sm:text-base">
-                {startDate} → {endDate}
+              <div className="text-sm font-semibold text-gray-900">
+                {formatDateRange(startDate, endDate)}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white px-5 py-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-violet-500">
-                <span>👥</span>
-                <span>Travelers</span>
+            {/* Travelers */}
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1 flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-purple-500" />
+                <span className="text-xs font-medium text-purple-500">Travelers</span>
               </div>
-              <div className="text-lg font-semibold text-gray-900">{travelers} people</div>
+              <div className="text-sm font-semibold text-gray-900">{travelers} people</div>
             </div>
 
-            <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white px-5 py-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-600">
-                <span>💶</span>
-                <span>Budget</span>
+            {/* Budget */}
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <div className="mb-1 flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4 text-orange-500" />
+                <span className="text-xs font-medium text-orange-500">Budget</span>
               </div>
-              <div className="text-lg font-semibold text-gray-900">EUR {budget.toLocaleString()}</div>
+              <div className="text-sm font-semibold text-gray-900">
+                EUR {budget.toLocaleString()}
+              </div>
             </div>
           </div>
-
-          <section className="mb-8 rounded-2xl border border-cyan-200 bg-gradient-to-b from-cyan-50/40 to-white p-6">
-            <h2 className="mb-6 text-2xl font-semibold text-gray-900">��️ Itinerary Timeline</h2>
-
-            {itineraryLines.length > 0 ? (
-              <div className="space-y-5">
-                {itineraryLines.map((line, index) => {
-                  const match = line.match(/^Day\s+\d+/i);
-                  const dayLabel = match ? match[0] : `Day ${index + 1}`;
-                  const description = line.replace(dayLabel, "").trim();
-                  const itineraryKey = `${dayLabel}-${line}`;
-
-                  return (
-                    <div key={itineraryKey} className="relative pl-11">
-                      {index < itineraryLines.length - 1 && (
-                        <span className="absolute left-[17px] top-8 h-[calc(100%+20px)] w-px bg-cyan-200" />
-                      )}
-                      <span className="absolute left-0 top-1 inline-flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-sm font-bold text-cyan-700 ring-4 ring-white">
-                        {index + 1}
-                      </span>
-
-                      <div className="rounded-xl border border-cyan-100 bg-white px-4 py-3 shadow-sm">
-                        <div className="mb-1 text-sm font-semibold text-cyan-700">{dayLabel}</div>
-                        <p className="text-sm leading-relaxed text-gray-700 sm:text-base">
-                          {description || line}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No itinerary data found.</p>
-            )}
-          </section>
-
-          {flights.length > 0 && (
-            <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900 sm:text-2xl">
-                  <span>✈️</span>
-                  <span>Flight recommendations</span>
-                </h2>
-                <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 sm:text-sm">
-                  🔥 Best fares highlighted
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {flights.map((flight, index) => {
-                  const numericPrice = extractNumericPrice(flight.price);
-                  const isBestPrice = lowestPrice !== null && numericPrice === lowestPrice;
-                  const shortAirline = shortenAirlineName(flight.airline);
-                  const airlineCode = getAirlineCode(flight.airline);
-                  const fromCode = flight.type === "OUTBOUND" ? originCode : destinationCode;
-                  const toCode = flight.type === "OUTBOUND" ? destinationCode : originCode;
-
-                  return (
-                    <article key={`${flight.type}-${flight.airline}-${flight.dateTime}-${flight.price}`} className="rounded-xl border border-gray-200 bg-gray-50/30 px-4 py-3">
-                      <div className="hidden lg:grid lg:grid-cols-[260px_1fr_130px] lg:items-center lg:gap-4">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-bold text-white">
-                            {airlineCode}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-semibold text-gray-900">{shortAirline}</div>
-                            <div className="text-[11px] text-gray-500">
-                              {airlineCode} {index + 101}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex min-w-0 items-center justify-center gap-4">
-                          <div className="min-w-[60px] text-center text-base font-bold text-gray-900">{fromCode}</div>
-
-                          <div className="flex max-w-[220px] flex-1 flex-col items-center justify-center">
-                            <span
-                              className={`mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                flight.type === "OUTBOUND" ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"
-                              }`}
-                            >
-                              {flight.type === "OUTBOUND" ? "Outbound" : "Return"}
-                            </span>
-
-                            <div className="flex w-full items-center">
-                              <div className="h-px flex-1 bg-gray-300" />
-                              <div className="px-2 text-xs text-gray-400">✈</div>
-                              <div className="h-px flex-1 bg-gray-300" />
-                            </div>
-
-                            <div className="mt-1 whitespace-nowrap text-[10px] text-gray-500">
-                              {formatFlightDate(flight.dateTime)}
-                            </div>
-                          </div>
-
-                          <div className="min-w-[60px] text-center text-base font-bold text-gray-900">{toCode}</div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="text-lg font-bold leading-none text-emerald-600">{flight.price || "—"}</div>
-                          <div className="mt-0.5 text-[10px] text-gray-500">per person</div>
-                          {isBestPrice && (
-                            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                              🔥 Best
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 lg:hidden">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-bold text-white">
-                            {airlineCode}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-semibold text-gray-900">{shortAirline}</div>
-                            <div className="text-[11px] text-gray-500">
-                              {airlineCode} {index + 101}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-[56px] text-center text-base font-bold text-gray-900">{fromCode}</div>
-
-                          <div className="flex-1 text-center">
-                            <span
-                              className={`mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                flight.type === "OUTBOUND" ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"
-                              }`}
-                            >
-                              {flight.type === "OUTBOUND" ? "Outbound" : "Return"}
-                            </span>
-
-                            <div className="flex items-center">
-                              <div className="h-px flex-1 bg-gray-300" />
-                              <div className="px-2 text-xs text-gray-400">✈</div>
-                              <div className="h-px flex-1 bg-gray-300" />
-                            </div>
-
-                            <div className="mt-1 text-[10px] text-gray-500">{formatFlightDate(flight.dateTime)}</div>
-                          </div>
-
-                          <div className="min-w-[56px] text-center text-base font-bold text-gray-900">{toCode}</div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-lg font-bold leading-none text-emerald-600">{flight.price || "—"}</div>
-                            <div className="mt-0.5 text-[10px] text-gray-500">per person</div>
-                          </div>
-
-                          {isBestPrice && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                              🔥 Best
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          <section className="mb-8 grid gap-4 sm:grid-cols-2">
-            {infoSections.map((section) => (
-              <article
-                key={section.key}
-                className={`rounded-2xl border ${section.border} bg-gradient-to-br ${section.background} p-5 shadow-sm`}
-              >
-                <h3 className={`mb-3 flex items-center gap-2 text-lg font-semibold ${section.accent}`}>
-                  <span>{section.icon}</span>
-                  <span>{section.title}</span>
-                </h3>
-                <p className="text-sm leading-7 text-gray-700 sm:text-base">{section.text}</p>
-              </article>
-            ))}
-          </section>
-
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-            <h3 className="mb-5 text-2xl font-bold text-gray-900">🎯 AI travel summary</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {summarySentences.slice(0, 6).map((sentence, index) => (
-                <div key={`summary-${index}`} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                  <p className="text-sm leading-6 text-gray-700 sm:text-base">{sentence}</p>
-                </div>
-              ))}
-            </div>
-          </section>
         </div>
+      </div>
+
+      {/* ── page content ───────────────────────────────────────────────────── */}
+      <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
+        {/* back + save row */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50"
+          >
+            ← Back
+          </button>
+
+          <button
+            onClick={saveTrip}
+            disabled={isSavingTrip}
+            aria-label={isSavingTrip ? "Saving trip" : "Save trip"}
+            className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
+              savedOk
+                ? "bg-green-500"
+                : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-105"
+            }`}
+          >
+            <span>{savedOk ? "✓" : "❤️"}</span>
+            <span>{isSavingTrip ? "Saving…" : savedOk ? "Saved!" : "Save Trip"}</span>
+          </button>
+        </div>
+
+        {!isLoggedIn && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+            Please sign in to save this trip to your account.
+          </div>
+        )}
+
+        {/* ── assistant plan ─────────────────────────────────────────────── */}
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-violet-500" />
+            <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Assistant Plan</h2>
+          </div>
+
+          <div className="space-y-2 text-sm leading-7 text-gray-700">
+            {planSections.intro && (
+              <p className="text-gray-600">{planSections.intro}</p>
+            )}
+
+            {Object.entries(SECTION_LABELS).map(([key, { label, color }]) => {
+              const lines = planSections.sections[key];
+              if (!lines || lines.length === 0) return null;
+              const content = lines.join(" • ");
+              return (
+                <p key={key}>
+                  <span className={`font-semibold ${color}`}>{label}</span>{" "}
+                  <span className="text-gray-700">{content}</span>
+                </p>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── daily itinerary ────────────────────────────────────────────── */}
+        {itineraryLines.length > 0 && (
+          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Map className="h-5 w-5 text-slate-600" />
+              <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
+                Daily Itinerary
+              </h2>
+            </div>
+
+            <div className="space-y-3">
+              {itineraryLines.map((line, idx) => {
+                const { title, description } = parseItineraryLine(line);
+                const { Icon, bg, color } = getItineraryIcon(title + " " + description);
+                const dateStr = itineraryDate(startDate, idx);
+
+                return (
+                  <div
+                    key={`itinerary-${idx}-${title}`}
+                    className="flex items-center gap-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 transition hover:bg-gray-100"
+                  >
+                    {/* day number badge */}
+                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white">
+                      <span className="text-[9px] font-semibold uppercase tracking-widest leading-none">
+                        DAY
+                      </span>
+                      <span className="text-lg font-bold leading-none">{idx + 1}</span>
+                    </div>
+
+                    {/* activity icon */}
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${bg}`}
+                    >
+                      <Icon className={`h-5 w-5 ${color}`} />
+                    </div>
+
+                    {/* text */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{title}</p>
+                      {description && (
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{description}</p>
+                      )}
+                    </div>
+
+                    {/* date */}
+                    {dateStr && (
+                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1">
+                        <CalendarDays className="h-3 w-3 text-violet-500" />
+                        <span className="text-xs font-medium text-violet-600 whitespace-nowrap">
+                          {dateStr}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── flights ────────────────────────────────────────────────────── */}
+        {flights.length > 0 && (
+          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Plane className="h-5 w-5 text-slate-600" />
+                <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Flights</h2>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                🔥 Best prices selected
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {flights.map((fl, idx) => {
+                const priceNum = Number(fl.price.replace(/[^0-9]/g, ""));
+                const isBest =
+                  lowestPrice !== null && priceNum > 0 && priceNum === lowestPrice;
+                const airlineBg = AIRLINE_COLORS[fl.airlineCode] ?? "#1e293b";
+
+                return (
+                  <div
+                    key={`${fl.type}-${fl.airline}-${idx}`}
+                    className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      {/* airline logo + info */}
+                      <div className="flex items-center gap-3 sm:w-52 sm:shrink-0">
+                        <AirlineLogo
+                          code={fl.airlineCode}
+                          name={fl.airline}
+                          bg={airlineBg}
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 leading-tight">
+                            {fl.airline.replace(/\(.*?\)/g, "").trim()}
+                          </p>
+                          {fl.flightNumber && (
+                            <p className="text-xs text-gray-500">{fl.flightNumber}</p>
+                          )}
+                          <span
+                            className={`mt-1 inline-block rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                              fl.type === "OUTBOUND"
+                                ? "border-blue-200 bg-blue-50 text-blue-700"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {fl.type === "OUTBOUND" ? "Outbound" : "Return"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* route */}
+                      <div className="flex flex-1 items-center justify-between gap-3">
+                        {/* from */}
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-gray-900">{fl.fromCode}</p>
+                          <p className="text-xs text-gray-500">{fl.fromCity}</p>
+                          {fl.departureTime && (
+                            <p className="text-xs text-gray-400 mt-0.5">{fl.departureTime}</p>
+                          )}
+                        </div>
+
+                        {/* middle */}
+                        <div className="flex-1 flex flex-col items-center gap-1 max-w-[160px]">
+                          {fl.duration && (
+                            <span className="text-xs text-gray-500">{fl.duration}</span>
+                          )}
+                          <div className="flex w-full items-center gap-1">
+                            <div className="h-px flex-1 bg-gray-300" />
+                            <Plane className="h-3.5 w-3.5 text-gray-400" />
+                            <div className="h-px flex-1 bg-gray-300" />
+                          </div>
+                          {fl.isDirect && (
+                            <span className="text-[10px] font-medium text-emerald-600">
+                              Direct
+                            </span>
+                          )}
+                        </div>
+
+                        {/* to */}
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-gray-900">{fl.toCode}</p>
+                          <p className="text-xs text-gray-500">{fl.toCity}</p>
+                          {fl.arrivalTime && (
+                            <p className="text-xs text-gray-400 mt-0.5">{fl.arrivalTime}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* price */}
+                      {fl.price && (
+                        <div className="shrink-0 text-right sm:pl-4">
+                          <p className="text-2xl font-bold text-violet-600">{fl.price}</p>
+                          <p className="text-xs text-gray-500">per person</p>
+                          {isBest && (
+                            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                              🔥 Best Price
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

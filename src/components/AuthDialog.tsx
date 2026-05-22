@@ -6,8 +6,18 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 interface AuthDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthenticated: (user: { name: string; email: string }) => void;
+  onAuthenticated: (user: { id: number; name: string; email: string }) => void;
 }
+
+const hashEmailForMockId = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash << 5) - hash + normalized.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) || 1;
+};
 
 export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -19,8 +29,10 @@ export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let resolvedUserId: number | null = null;
+
     if (mode === 'register') {
-      await fetch(`${API_BASE_URL}/api/users/register`,{
+      const registerResponse = await fetch(`${API_BASE_URL}/api/users/register`,{
         method:"POST",
         headers:{
           "Content-Type":"application/json"
@@ -30,10 +42,35 @@ export function AuthDialog({ isOpen, onClose, onAuthenticated }: AuthDialogProps
           password
         })
       });
+
+      const registerPayload = await registerResponse.json().catch(() => null);
+      if (typeof registerPayload?.id === 'number') {
+        resolvedUserId = registerPayload.id;
+      }
     }
+
+    if (resolvedUserId === null) {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+        if (
+          typeof storedUser?.email === 'string' &&
+          storedUser.email.toLowerCase() === email.trim().toLowerCase() &&
+          typeof storedUser?.id === 'number'
+        ) {
+          resolvedUserId = storedUser.id;
+        }
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+      }
+    }
+
+    if (resolvedUserId === null) {
+      resolvedUserId = hashEmailForMockId(email);
+    }
+
     // Mock authentication - in real app, this would call an API
     const userData = {
-  id: 1,
+  id: resolvedUserId,
   name: mode === 'register' ? name : email.split('@')[0],
   email: email
 };

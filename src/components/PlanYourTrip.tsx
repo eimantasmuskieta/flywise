@@ -9,7 +9,7 @@ type ViewMode = 'form' | 'chat';
 
 interface PlanYourTripProps {
   initialMode?: ViewMode;
-  user: { name: string; email: string } | null;
+  user: { id: number; name: string; email: string } | null;
   onSaveTrip: (trip: any) => void;
   onAuthRequired: () => void;
 }
@@ -458,13 +458,10 @@ export function PlanYourTrip({ initialMode = 'form', user, onSaveTrip, onAuthReq
         endDate={endDate}
         travelers={parseInt(travelers)}
         budget={parseInt(budget)}
-        interests={interests}
-        apiBaseUrl={API_BASE_URL}
         planData={formPlanData}
         onBack={() => setShowResults(false)}
-        onSaveTrip={handleSaveTrip}
-        user={user}
         onAuthRequired={onAuthRequired}
+        originCity={originCity}
       />
     );
   }
