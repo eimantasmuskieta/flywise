@@ -41,7 +41,7 @@ export function SavedTrips({ user, onDeleteTrip, onViewTrip }: SavedTripsProps) 
         <div className="max-w-4xl mx-auto text-center">
           <div className="bg-white rounded-3xl p-12 shadow-xl">
             <Heart className="w-20 h-20 mx-auto mb-6 text-gray-300" />
-            <h2 className="mb-4 text-gray-900">Sign in to view saved trips</h2>
+            <h2 className="mb-4 text-2xl font-semibold text-gray-900">Sign in to view saved trips</h2>
             <p className="text-gray-600">Saved trips are available only for your logged-in account.</p>
           </div>
         </div>

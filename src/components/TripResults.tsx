@@ -358,6 +358,7 @@ export function TripResults({
             <button
               onClick={saveTrip}
               disabled={isSavingTrip}
+              aria-label={isSavingTrip ? "Saving trip" : "Save trip"}
               className="inline-flex h-10 min-w-[130px] items-center justify-center gap-2 self-start whitespace-nowrap rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 text-sm font-semibold leading-none text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <span>❤️</span>
