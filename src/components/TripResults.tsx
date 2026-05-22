@@ -680,7 +680,7 @@ export function TripResults({
                           name={fl.airline}
                           bg={airlineBg}
                         />
-                        <div className="flex-1">
+                        <div className="trip-flight-airline-meta">
                           <p className="truncate text-sm font-semibold leading-tight text-gray-900">
                             {fl.airline.replace(/\(.*?\)/g, "").trim()}
                           </p>
@@ -702,7 +702,7 @@ export function TripResults({
                       {/* route */}
                       <div className="trip-flight-route">
                         {/* from */}
-                        <div className="trip-flight-point trip-flight-point--from">
+                        <div className="trip-flight-point">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.fromCode}</p>
                           <p className="mt-0.5 truncate text-xs text-gray-500">{fl.fromCity}</p>
                           {fl.departureTime && (

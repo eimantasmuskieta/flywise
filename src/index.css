@@ -2968,13 +2968,16 @@ html {
   grid-template-columns: minmax(0, 1fr);
 }
 
-@media (width >= 48rem) {
+@media (min-width: 48rem) {
   .trip-results-info-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .trip-flight-row {
+  --trip-flight-airline-col: 14rem;
+  --trip-flight-point-col: 6.875rem;
+  --trip-flight-price-col: 7rem;
   display: grid;
   gap: 1rem;
 }
@@ -2983,6 +2986,12 @@ html {
   display: flex;
   align-items: center;
   gap: .75rem;
+  min-width: 0;
+}
+
+.trip-flight-airline-meta {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .trip-flight-route {
@@ -3012,18 +3021,18 @@ html {
   text-align: right;
 }
 
-@media (width >= 40rem) {
+@media (min-width: 48rem) {
   .trip-flight-row {
-    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, var(--trip-flight-airline-col)) minmax(0, 1fr) auto;
     align-items: center;
     column-gap: 1.5rem;
   }
 
   .trip-flight-route {
-    grid-template-columns: minmax(0, 6.875rem) minmax(0, 1fr) minmax(0, 6.875rem);
+    grid-template-columns: minmax(0, var(--trip-flight-point-col)) minmax(0, 1fr) minmax(0, var(--trip-flight-point-col));
   }
 
   .trip-flight-price {
-    width: 7rem;
+    width: var(--trip-flight-price-col);
   }
 }
