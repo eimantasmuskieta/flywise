@@ -2960,3 +2960,79 @@ html {
     opacity: .5;
   }
 }
+
+/* TripResults layout fixes */
+.trip-results-info-grid {
+  display: grid;
+  gap: .75rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 48rem) {
+  .trip-results-info-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.trip-flight-row {
+  --trip-flight-airline-col: 14rem;
+  --trip-flight-point-col: 6.875rem;
+  --trip-flight-price-col: 7rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.trip-flight-airline {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+}
+
+.trip-flight-airline-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trip-flight-route {
+  display: grid;
+  gap: .75rem;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.trip-flight-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .125rem;
+}
+
+.trip-flight-point {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trip-flight-point--to {
+  text-align: right;
+}
+
+.trip-flight-price {
+  text-align: right;
+}
+
+@media (min-width: 48rem) {
+  .trip-flight-row {
+    grid-template-columns: minmax(0, var(--trip-flight-airline-col)) minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.5rem;
+  }
+
+  .trip-flight-route {
+    grid-template-columns: minmax(0, var(--trip-flight-point-col)) minmax(0, 1fr) minmax(0, var(--trip-flight-point-col));
+  }
+
+  .trip-flight-price {
+    width: var(--trip-flight-price-col);
+  }
+}
