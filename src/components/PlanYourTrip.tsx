@@ -461,6 +461,7 @@ export function PlanYourTrip({ initialMode = 'form', user, onSaveTrip, onAuthReq
         planData={formPlanData}
         onBack={() => setShowResults(false)}
         onAuthRequired={onAuthRequired}
+        originCity={originCity}
       />
     );
   }
