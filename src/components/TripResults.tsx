@@ -532,7 +532,7 @@ export function TripResults({
       {/* ── page content ───────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
         {/* back + save row */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 transition hover:text-gray-800 hover:bg-gray-100"
@@ -544,10 +544,10 @@ export function TripResults({
             onClick={saveTrip}
             disabled={isSavingTrip}
             aria-label={isSavingTrip ? "Saving trip" : "Save trip"}
-            className={`inline-flex h-9 min-w-[120px] items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:opacity-70 ${
+            className={`inline-flex h-10 min-w-[8rem] items-center justify-center gap-1.5 rounded-full border px-4 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
               savedOk
-                ? "bg-green-500"
-                : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+                ? "border-green-200 bg-green-50 text-green-700"
+                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
             }`}
           >
             <span>{savedOk ? "✓" : "❤️"}</span>
@@ -672,15 +672,15 @@ export function TripResults({
                     key={`${fl.type}-${fl.airline}-${idx}`}
                     className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                   >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                       {/* airline logo + info */}
-                      <div className="flex items-center gap-3 sm:w-52 sm:shrink-0">
+                      <div className="flex items-center gap-3 sm:w-56 sm:shrink-0">
                         <AirlineLogo
                           code={fl.airlineCode}
                           name={fl.airline}
                           bg={airlineBg}
                         />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold leading-tight text-gray-900">
                             {fl.airline.replace(/\(.*?\)/g, "").trim()}
                           </p>
@@ -702,7 +702,7 @@ export function TripResults({
                       {/* route */}
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         {/* from */}
-                        <div className="w-[90px] shrink-0 overflow-hidden">
+                        <div className="w-[110px] shrink-0 overflow-hidden">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.fromCode}</p>
                           <p className="mt-0.5 truncate text-xs text-gray-500">{fl.fromCity}</p>
                           {fl.departureTime && (
@@ -728,7 +728,7 @@ export function TripResults({
                         </div>
 
                         {/* to */}
-                        <div className="w-[90px] shrink-0 overflow-hidden text-right">
+                        <div className="w-[110px] shrink-0 overflow-hidden text-right">
                           <p className="text-2xl font-bold leading-none text-gray-900">{fl.toCode}</p>
                           <p className="mt-0.5 truncate text-xs text-gray-500">{fl.toCity}</p>
                           {fl.arrivalTime && (
@@ -739,7 +739,7 @@ export function TripResults({
 
                       {/* price */}
                       {fl.price && (
-                        <div className="shrink-0 text-right sm:pl-4">
+                        <div className="shrink-0 text-right sm:w-28">
                           <p className="text-2xl font-bold text-violet-600">{fl.price}</p>
                           <p className="text-xs text-gray-500">per person</p>
                           {isBest && (
